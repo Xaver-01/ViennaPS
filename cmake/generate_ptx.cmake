@@ -22,6 +22,7 @@ function(generate_pipeline target_name generated_files_output)
       ${cu_optix_source_files}
       ${cmake_options}
       OPTIONS
+      --relocatable-device-code true
       ${options})
     list(APPEND generated_files_local ${generated_optixir_files})
   endif()
@@ -35,6 +36,7 @@ function(generate_pipeline target_name generated_files_output)
       ${cu_optix_source_files}
       ${cmake_options}
       OPTIONS
+      --relocatable-device-code true
       ${options})
     list(APPEND generated_files_local ${generated_ptx_files})
   endif()
@@ -62,6 +64,7 @@ function(generate_kernel target_name generated_files_output)
     ${cu_source_files}
     ${cmake_options}
     OPTIONS
+    --relocatable-device-code true
     ${options})
 
   set(${generated_files_output}
@@ -111,6 +114,7 @@ function(add_GPU_executable target_name_base target_name_var)
     ${VIENNAPS_CUDA_KERNELS}
     ${cmake_options}
     OPTIONS
+    --relocatable-device-code true
     ${options})
 
   # Create the rules to build the PTX and/or OPTIX files.

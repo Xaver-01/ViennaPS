@@ -38,7 +38,7 @@ int main(int argc, char *argv[]) {
   process.setDomain(geometry);
   process.setProcessModel(model);
   process.setProcessDuration(params.get("processTime"));
-  if constexpr (ps::gpuAvailable() && D == 3)
+  if constexpr (ps::gpuAvailable())
     process.setFluxEngineType(ps::FluxEngineType::GPU_TRIANGLE);
 
   geometry->saveHullMesh("initial");

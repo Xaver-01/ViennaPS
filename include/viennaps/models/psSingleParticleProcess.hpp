@@ -108,7 +108,15 @@ public:
     auto velField =
         SmartPointer<::viennaps::DefaultVelocityField<NumericType, D>>::New(2);
 
-    this->setPipelineFileName("SingleParticlePipeline");
+    this->setPipelineFileName("GeneralPipeline");
+    this->setCallableFileName("CallableWrapper");
+    std::unordered_map<std::string, unsigned> pMap = {{"SingleParticle", 0}};
+    std::vector<viennaray::gpu::CallableConfig> cMap = {
+        {0, viennaray::gpu::CallableSlot::COLLISION,
+         "__direct_callable__singleNeutralCollision"},
+        {0, viennaray::gpu::CallableSlot::REFLECTION,
+         "__direct_callable__singleNeutralReflection"}};
+    this->setParticleCallableMap(pMap, cMap);
     this->setSurfaceModel(surfModel);
     this->setVelocityField(velField);
     this->insertNextParticleType(particle);

@@ -2,37 +2,66 @@
 #include <models/psIsotropicProcess.hpp>
 #include <models/psMultiParticleProcess.hpp>
 #include <models/psSingleParticleProcess.hpp>
+#include <models/psgMultiParticleProcess.hpp>
 #include <process/psProcess.hpp>
 #include <psUtil.hpp>
 
 using namespace viennaps;
-constexpr int D = 2;
+constexpr int D = 3;
 using NumericType = double;
 
-void etch(SmartPointer<Domain<NumericType, D>> domain,
-          util::Parameters &params) {
+void etch(SmartPointer<Domain<NumericType, D>> domain, util::Parameters &params,
+          FluxEngineType &engineType) {
   std::cout << "  - Etching - " << std::endl;
-  auto etchModel = SmartPointer<MultiParticleProcess<NumericType, D>>::New();
-  etchModel->addNeutralParticle(params.get("neutralStickingProbability"));
-  etchModel->addIonParticle(params.get("ionSourceExponent"),
-                            90. /*no reflections*/);
-  const NumericType neutralRate = params.get("neutralRate");
-  const NumericType ionRate = params.get("ionRate");
-  etchModel->setRateFunction(
-      [neutralRate, ionRate](const std::vector<NumericType> &fluxes,
-                             const Material &material) {
-        if (material == Material::Mask)
-          return 0.;
-        NumericType rate = fluxes[1] * ionRate;
-        if (material == Material::Si)
-          rate += fluxes[0] * neutralRate;
-        return rate;
-      });
-  Process<NumericType, D>(domain, etchModel, params.get("etchTime")).apply();
+  if (engineType ==
+      FluxEngineType::CPU_DISK) { // TODO: adapt MultiParticleProcess like
+                                  // SingleParticleProcess
+    auto etchModel = SmartPointer<MultiParticleProcess<NumericType, D>>::New();
+    etchModel->addNeutralParticle(params.get("neutralStickingProbability"));
+    etchModel->addIonParticle(params.get("ionSourceExponent"),
+                              90. /*no reflections*/);
+    const NumericType neutralRate = params.get("neutralRate");
+    const NumericType ionRate = params.get("ionRate");
+    etchModel->setRateFunction(
+        [neutralRate, ionRate](const std::vector<NumericType> &fluxes,
+                               const Material &material) {
+          if (material == Material::Mask)
+            return 0.;
+          NumericType rate = fluxes[1] * ionRate;
+          if (material == Material::Si)
+            rate += fluxes[0] * neutralRate;
+          return rate;
+        });
+    Process<NumericType, D> process(domain, etchModel, params.get("etchTime"));
+    process.setFluxEngineType(engineType);
+    process.apply();
+  } else {
+    auto etchModel =
+        SmartPointer<gpu::MultiParticleProcess<NumericType, D>>::New();
+
+    etchModel->addNeutralParticle(params.get("neutralStickingProbability"));
+    etchModel->addIonParticle(params.get("ionSourceExponent"),
+                              90. /*no reflections*/);
+    const NumericType neutralRate = params.get("neutralRate");
+    const NumericType ionRate = params.get("ionRate");
+    etchModel->setRateFunction(
+        [neutralRate, ionRate](const std::vector<NumericType> &fluxes,
+                               const Material &material) {
+          if (material == Material::Mask)
+            return 0.;
+          NumericType rate = fluxes[1] * ionRate;
+          if (material == Material::Si)
+            rate += fluxes[0] * neutralRate;
+          return rate;
+        });
+    Process<NumericType, D> process(domain, etchModel, params.get("etchTime"));
+    process.setFluxEngineType(engineType);
+    process.apply();
+  }
 }
 
 void punchThrough(SmartPointer<Domain<NumericType, D>> domain,
-                  util::Parameters &params) {
+                  util::Parameters &params, FluxEngineType &engineType) {
   std::cout << "  - Punching through - " << std::endl;
   NumericType depositionThickness = params.get("depositionThickness");
 
@@ -40,18 +69,22 @@ void punchThrough(SmartPointer<Domain<NumericType, D>> domain,
   auto depoRemoval = SmartPointer<SingleParticleProcess<NumericType, D>>::New(
       -depositionThickness, 1. /* sticking */, params.get("ionSourceExponent"),
       Material::Mask);
-  Process<NumericType, D>(domain, depoRemoval, 1.).apply();
+  Process<NumericType, D> process(domain, depoRemoval, 1.);
+  process.setFluxEngineType(engineType);
+  process.apply();
 }
 
 void deposit(SmartPointer<Domain<NumericType, D>> domain,
-             util::Parameters &params) {
+             util::Parameters &params, FluxEngineType &engineType) {
   std::cout << "  - Deposition - " << std::endl;
   NumericType depositionThickness = params.get("depositionThickness");
   NumericType depositionSticking = params.get("depositionStickingProbability");
   domain->duplicateTopLevelSet(Material::Polymer);
   auto model = SmartPointer<SingleParticleProcess<NumericType, D>>::New(
       depositionThickness, depositionSticking);
-  Process<NumericType, D>(domain, model, 1.).apply();
+  Process<NumericType, D> process(domain, model, 1.);
+  process.setFluxEngineType(engineType);
+  process.apply();
 }
 
 void ash(SmartPointer<Domain<NumericType, D>> domain) {
@@ -68,8 +101,12 @@ void cleanup(SmartPointer<Domain<NumericType, D>> domain,
 
 int main(int argc, char **argv) {
 
-  Logger::setLogLevel(LogLevel::ERROR);
+  Logger::setLogLevel(LogLevel::DEBUG);
   omp_set_num_threads(16);
+
+  FluxEngineType engineType = FluxEngineType::CPU_DISK;
+  if constexpr (gpuAvailable())
+    engineType = FluxEngineType::GPU_TRIANGLE;
 
   // Parse the parameters
   util::Parameters params;
@@ -95,16 +132,16 @@ int main(int argc, char **argv) {
 
   int n = 0;
   geometry->saveSurfaceMesh(name + std::to_string(n++) + ".vtp");
-  etch(geometry, params);
+  etch(geometry, params, engineType);
   geometry->saveSurfaceMesh(name + std::to_string(n++) + ".vtp");
 
   for (int i = 0; i < numCycles; ++i) {
     std::cout << "Cycle " << i + 1 << std::endl;
-    deposit(geometry, params);
+    deposit(geometry, params, engineType);
     geometry->saveSurfaceMesh(name + std::to_string(n++) + ".vtp");
-    punchThrough(geometry, params);
+    punchThrough(geometry, params, engineType);
     geometry->saveSurfaceMesh(name + std::to_string(n++) + ".vtp");
-    etch(geometry, params);
+    etch(geometry, params, engineType);
     geometry->saveSurfaceMesh(name + std::to_string(n++) + ".vtp");
     ash(geometry);
     geometry->saveSurfaceMesh(name + std::to_string(n++) + ".vtp");

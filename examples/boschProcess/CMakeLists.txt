@@ -1,7 +1,11 @@
 project(boschProcess LANGUAGES CXX)
 
-add_executable(boschProcessSimulate "boschProcessSimulate.cpp")
-target_link_libraries(boschProcessSimulate PRIVATE ViennaPS)
+if(VIENNAPS_USE_GPU)
+  add_gpu_executable(boschProcessSimulate target_name "boschProcessSimulate.cpp")
+else()
+  add_executable(boschProcessSimulate "boschProcessSimulate.cpp")
+  target_link_libraries(boschProcessSimulate PRIVATE ViennaPS)
+endif()
 
 add_executable(boschProcessEmulate "boschProcessEmulate.cpp")
 target_link_libraries(boschProcessEmulate PRIVATE ViennaPS)

@@ -68,7 +68,22 @@ private:
     this->insertNextParticleType(ion);
     this->insertNextParticleType(etchant);
     this->insertNextParticleType(oxygen);
-    this->setPipelineFileName("PlasmaEtchingPipeline");
+    this->setPipelineFileName("GeneralPipeline");
+    this->setCallableFileName("CallableWrapper");
+    std::unordered_map<std::string, unsigned> pMap = {{"neutral", 0},
+                                                      {"ion", 1}};
+    std::vector<viennaray::gpu::CallableConfig> cMap = {
+        {0, viennaray::gpu::CallableSlot::COLLISION,
+         "__direct_callable__plasmaNeutralCollision"},
+        {0, viennaray::gpu::CallableSlot::REFLECTION,
+         "__direct_callable__plasmaNeutralReflection"},
+        {1, viennaray::gpu::CallableSlot::COLLISION,
+         "__direct_callable__plasmaIonCollision"},
+        {1, viennaray::gpu::CallableSlot::REFLECTION,
+         "__direct_callable__plasmaIonReflection"},
+        {1, viennaray::gpu::CallableSlot::INIT,
+         "__direct_callable__plasmaIonInit"}};
+    this->setParticleCallableMap(pMap, cMap);
 
     this->processData.alloc(sizeof(PlasmaEtchingParameters<float>));
     this->processData.upload(&deviceParams, 1);

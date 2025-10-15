@@ -11,7 +11,7 @@ int main(int argc, char **argv) {
   using NumericType = double;
   constexpr int D = 3;
 
-  Logger::setLogLevel(LogLevel::ERROR);
+  Logger::setLogLevel(LogLevel::INFO);
   omp_set_num_threads(12);
 
   // Parse the parameters
@@ -72,6 +72,8 @@ int main(int argc, char **argv) {
   process.setParameters(advectionParams);
   process.setParameters(rayParams);
   process.setParameters(coverageParams);
+  if constexpr (gpuAvailable())
+    process.setFluxEngineType(FluxEngineType::GPU_TRIANGLE);
 
   // print initial surface
   geometry->saveSurfaceMesh("DRAM_Initial.vtp");

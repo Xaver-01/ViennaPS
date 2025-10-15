@@ -18,6 +18,7 @@ meanEnergy=200 # eV
 sigmaEnergy=10 # eV
 
 integrationScheme=LF_2
+coverageDeltaThreshold=1e-4
 
 numSteps=100
 raysPerPoint=1000

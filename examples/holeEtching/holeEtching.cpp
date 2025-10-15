@@ -33,7 +33,7 @@ int main(int argc, char *argv[]) {
                            0.0, // holeDepth
                            0.0, // holeTaperAngle
                            params.get("maskHeight"), params.get("taperAngle"),
-                           HoleShape::QUARTER)
+                           HoleShape::HALF)
       .apply();
 
   // use pre-defined model SF6O2 etching model
@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
   process.setParameters(coverageParams);
   process.setParameters(rayTracingParams);
   process.setParameters(advectionParams);
-  if constexpr (gpuAvailable() && D == 3)
+  if constexpr (gpuAvailable())
     process.setFluxEngineType(FluxEngineType::GPU_TRIANGLE);
 
   // print initial surface
